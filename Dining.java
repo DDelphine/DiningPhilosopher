@@ -34,12 +34,24 @@ import java.lang.Thread.*;
 //      Manages graphical layout and button presses.
 
 public class Dining {
+    public static boolean verbose;
+   // public static Writer writer = new PrintWriter(System.out);
     private static final int CANVAS_SIZE = 360;
         // pixels in each direction;
         // needs to agree with size in dining.html
-
+    
     public static void main(String[] args) {
-        JFrame f = new JFrame("Dining");
+	if (args.length != 0){  //checks if program should be run in verbose mode (print all state transitions)  
+		if (args[0].equals("-v") || args[0].equals("-V")){
+			verbose = true;
+			System.out.println("Verbose output:");
+		} else {
+			verbose = false;
+		}
+	} else {
+		verbose = false;
+	}
+	JFrame f = new JFrame("Dining");
         f.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         Dining me = new Dining();
 
@@ -145,7 +157,7 @@ class Philosopher extends Thread {
     private static final double FUMBLE_TIME = 2.0;
         // time between becoming hungry and grabbing first fork
     private static final double EAT_TIME = 3.0;
-
+    public Writer writer = new BufferedWriter(new OutputStreamWriter(System.out));
     private Coordinator c;
     private Table t;
     private static final int XSIZE = 50;
@@ -157,6 +169,8 @@ class Philosopher extends Thread {
     private int index;
     private Random prn;
     private Color color;
+    public int counter;
+    public boolean flag;
 
     // Constructor.
     // cx and cy indicate coordinates of center
@@ -171,6 +185,8 @@ class Philosopher extends Thread {
         left_fork = lf;
         right_fork = rf;
         c = C;
+	counter = 0;
+	flag = true;
         prn = new Random();
         color = THINK_COLOR;
     }
@@ -187,12 +203,14 @@ class Philosopher extends Thread {
     public void run() {
         for (;;) {
             try {
+	    synchronized(writer){//synchronizes writer to prevent multiple threads from writing simultaneously
                 if (c.gate()) delay(EAT_TIME/2.0);
                 think();
-                if (c.gate()) delay(THINK_TIME/2.0);
+                if (c.gate()) delay((THINK_TIME+counter)/2.0);
                 hunger();
                 if (c.gate()) delay(FUMBLE_TIME/2.0);
-                eat();
+  		eat();
+	    }
             } catch(ResetException e) { 
                 color = THINK_COLOR;
                 t.repaint();
@@ -234,12 +252,26 @@ class Philosopher extends Thread {
     }
 
     private void think() throws ResetException {
+	if(Dining.verbose){
+		try{
+                              writer.write("Philosopher "+ this.get_index() + " thinking\n");
+                              writer.flush(); 
+             } catch (IOException e){
+                 }
+	 }
         color = THINK_COLOR;
         t.repaint();
         delay(THINK_TIME);
     }
 
     private void hunger() throws ResetException {
+	 if(Dining.verbose){//checks if it needs to print state change 
+                try{    
+                              writer.write("Philosopher "+ this.get_index() + " waiting\n");
+                              writer.flush();
+             } catch (IOException e){
+                 }
+         }
         color = WAIT_COLOR;
         t.repaint();
         delay(FUMBLE_TIME);
@@ -302,10 +334,26 @@ class Philosopher extends Thread {
     }
 
     private void eat() throws ResetException {
+
         //eat when both of the forks are available, and the forks are held by current philosopher
         if(left_fork.get_state() && right_fork.get_state() && 
            left_fork.get_fork_holder() == this.get_index() && right_fork.get_fork_holder() == this.get_index()){
-            color = EAT_COLOR;
+             if(Dining.verbose){//checks if it needs to write state change
+                	try{    
+                              writer.write("Philosopher "+ this.get_index() + " eating\n");
+                              writer.flush();
+             	} catch (IOException e){
+                }
+            }
+            if(this.flag)	
+	      this.counter++;
+	    else
+	       this.counter--;
+	    if(this.counter == 5 && this.flag)
+	       this.flag = false;
+	    if(this.counter == 0 && !this.flag)
+	       this.flag = true;    
+	    color = EAT_COLOR;
             t.repaint();
             delay(EAT_TIME);
             left_fork.release();
@@ -388,7 +436,7 @@ class Table extends JPanel {
             forks[i],
             forks[(i+1) % NUM_PHILS],
             c);
-            philosophers[i].set_index(i);
+            philosophers[i].set_index(i+1);
             philosophers[i].start();
         }
     }
