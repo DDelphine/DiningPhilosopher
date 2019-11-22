@@ -345,6 +345,7 @@ class Philosopher extends Thread {
              	} catch (IOException e){
                 }
             }
+	    Table.result[this.get_index() -1]++;
             if(this.flag)	
 	      this.counter++;
 	    else
@@ -372,7 +373,8 @@ class Table extends JPanel {
     private final Coordinator c;
     private Fork[] forks;
     private Philosopher[] philosophers;
-
+    
+    public static int result[] = new int[NUM_PHILS]; 
     public void pause() {
         c.pause();
         // force philosophers to notice change in coordinator state:
@@ -479,6 +481,7 @@ class Coordinator {
     public synchronized boolean gate() throws ResetException {
         if (state == State.PAUSED || state == State.RESET) {
             try {
+		System.out.println(Arrays.toString(Table.result));
                 wait();
             } catch(InterruptedException e) {
                 if (isReset()) {
